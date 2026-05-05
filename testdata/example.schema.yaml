@@ -1,0 +1,37 @@
+# envlint schema definition example
+# Place this file (or a custom path) alongside your .env file.
+
+vars:
+  APP_ENV:
+    required: true
+    type: string
+    description: Deployment environment (development, staging, production)
+    pattern: "^(development|staging|production)$"
+
+  PORT:
+    required: false
+    type: int
+    default: "8080"
+    description: HTTP port the server listens on
+
+  DATABASE_URL:
+    required: true
+    type: url
+    description: PostgreSQL connection string
+
+  ADMIN_EMAIL:
+    required: true
+    type: email
+    description: Administrator contact email
+
+  FEATURE_FLAG_DARK_MODE:
+    required: false
+    type: bool
+    default: "false"
+    description: Enable experimental dark mode feature
+
+  SECRET_KEY:
+    required: true
+    type: string
+    description: HMAC signing secret — must be at least 32 characters
+    pattern: ".{32,}"
