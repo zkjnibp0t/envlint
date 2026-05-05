@@ -2,95 +2,94 @@ package validator
 
 import (
 	"fmt"
-	"regexp"
-	"strings"
+	"net/url"
+	"strconv"
 
 	"github.com/user/envlint/schema"
 )
 
-// Result holds the outcome of a single variable validation.
-type Result struct {
-	Key     string
-	Passed  bool
-	Message string
+// Severity indicates how serious a validation issue is.
+type Severity string
+
+const (
+	SeverityError   Severity = "error"
+	SeverityWarning Severity = "warning"
+)
+
+// ValidationError holds details about a single failed validation.
+type ValidationError struct {
+	Key      string
+	Message  string
+	Severity Severity
 }
 
-// Report aggregates all validation results.
-type Report struct {
-	Results []Result
+func (e ValidationError) Error() string {
+	return fmt.Sprintf("%s: %s", e.Key, e.Message)
 }
 
-// HasErrors returns true if any result failed.
-func (r *Report) HasErrors() bool {
-	for _, res := range r.Results {
-		if !res.Passed {
-			return true
-		}
-	}
-	return false
-}
-
-// Validate checks the provided env map against the schema.
-func Validate(s *schema.Schema, env map[string]string) *Report {
-	report := &Report{}
+// Validate checks env values against the schema and returns all errors found.
+func Validate(s *schema.Schema, env map[string]string) []ValidationError {
+	var errs []ValidationError
 
 	for _, v := range s.Vars {
-		val, exists := env[v.Name]
+		val, present := env[v.Name]
 
-		if !exists || val == "" {
+		if !present || val == "" {
 			if v.Required {
-				report.Results = append(report.Results, Result{
-					Key:     v.Name,
-					Passed:  false,
-					Message: fmt.Sprintf("%s is required but missing or empty", v.Name),
+				errs = append(errs, ValidationError{
+					Key:      v.Name,
+					Message:  "is required but missing or empty",
+					Severity: SeverityError,
 				})
 			}
 			continue
 		}
 
-		if err := validateValue(v, val); err != nil {
-			report.Results = append(report.Results, Result{
-				Key:     v.Name,
-				Passed:  false,
-				Message: err.Error(),
-			})
-		} else {
-			report.Results = append(report.Results, Result{
-				Key:    v.Name,
-				Passed: true,
-			})
+		if typeErr := validateValue(v.Name, val, v.Type); typeErr != nil {
+			errs = append(errs, *typeErr)
+		}
+
+		if v.Pattern != "" {
+			if matched, _ := regexp.MatchString("^"+v.Pattern+"$", val); !matched {
+				errs = append(errs, ValidationError{
+					Key:      v.Name,
+					Message:  fmt.Sprintf("does not match pattern %q", v.Pattern),
+					Severity: SeverityError,
+				})
+			}
 		}
 	}
 
-	return report
+	return errs
 }
 
-func validateValue(v schema.VarDef, val string) error {
-	switch strings.ToLower(v.Type) {
-	case "url":
-		if !strings.HasPrefix(val, "http://") && !strings.HasPrefix(val, "https://") {
-			return fmt.Errorf("%s must be a valid URL (got %q)", v.Name, val)
-		}
+func validateValue(key, val, typ string) *ValidationError {
+	switch typ {
 	case "int":
-		if matched, _ := regexp.MatchString(`^-?\d+$`, val); !matched {
-			return fmt.Errorf("%s must be an integer (got %q)", v.Name, val)
+		if _, err := strconv.Atoi(val); err != nil {
+			return &ValidationError{
+				Key:      key,
+				Message:  fmt.Sprintf("expected int, got %q", val),
+				Severity: SeverityError,
+			}
 		}
 	case "bool":
-		lower := strings.ToLower(val)
-		if lower != "true" && lower != "false" && lower != "1" && lower != "0" {
-			return fmt.Errorf("%s must be a boolean (got %q)", v.Name, val)
+		if _, err := strconv.ParseBool(val); err != nil {
+			return &ValidationError{
+				Key:      key,
+				Message:  fmt.Sprintf("expected bool, got %q", val),
+				Severity: SeverityError,
+			}
+		}
+	case "url":
+		u, err := url.ParseRequestURI(val)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			return &ValidationError{
+				Key:      key,
+				Message:  fmt.Sprintf("expected valid URL, got %q", val),
+				Severity: SeverityError,
+			}
 		}
 	}
-
-	if v.Pattern != "" {
-		matched, err := regexp.MatchString(v.Pattern, val)
-		if err != nil {
-			return fmt.Errorf("%s has invalid pattern %q: %w", v.Name, v.Pattern, err)
-		}
-		if !matched {
-			return fmt.Errorf("%s does not match pattern %q (got %q)", v.Name, v.Pattern, val)
-		}
-	}
-
 	return nil
 }
