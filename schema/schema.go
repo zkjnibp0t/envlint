@@ -1,3 +1,4 @@
+// Package schema handles loading and parsing the envlint schema definition.
 package schema
 
 import (
@@ -7,45 +8,37 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// VarType represents the expected type of an environment variable.
-type VarType string
-
-const (
-	TypeString  VarType = "string"
-	TypeInt     VarType = "int"
-	TypeBool    VarType = "bool"
-	TypeURL     VarType = "url"
-	TypeEmail   VarType = "email"
-)
-
-// VarDefinition describes a single environment variable rule.
+// VarDefinition describes a single environment variable in the schema.
 type VarDefinition struct {
-	Required    bool    `yaml:"required"`
-	Type        VarType `yaml:"type"`
-	Default     string  `yaml:"default"`
-	Description string  `yaml:"description"`
-	Pattern     string  `yaml:"pattern"`
+	Name            string `yaml:"name"`
+	Type            string `yaml:"type"`
+	Required        bool   `yaml:"required"`
+	Default         string `yaml:"default"`
+	Pattern         string `yaml:"pattern"`
+	Deprecated      bool   `yaml:"deprecated"`
+	DeprecationNote string `yaml:"deprecation_note"`
 }
 
-// Schema holds the full set of variable definitions loaded from a schema file.
+// Schema is the top-level schema definition loaded from a YAML file.
 type Schema struct {
-	Vars map[string]VarDefinition `yaml:"vars"`
+	Version string          `yaml:"version"`
+	Vars    []VarDefinition `yaml:"vars"`
 }
 
-// Load reads and parses a YAML schema file from the given path.
+// Load reads and parses a schema YAML file from the given path.
 func Load(path string) (*Schema, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("reading schema file %q: %w", path, err)
+		return nil, fmt.Errorf("reading schema file: %w", err)
 	}
 
 	var s Schema
 	if err := yaml.Unmarshal(data, &s); err != nil {
-		return nil, fmt.Errorf("parsing schema file %q: %w", path, err)
+		return nil, fmt.Errorf("parsing schema YAML: %w", err)
 	}
 
-	if s.Vars == nil {
-		s.Vars = make(map[string]VarDefinition)
+	if len(s.Vars) == 0 {
+		return nil, fmt.Errorf("schema defines no variables")
 	}
 
 	return &s, nil
