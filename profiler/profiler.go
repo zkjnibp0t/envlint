@@ -76,3 +76,12 @@ func Summary(p Profile) string {
 		p.TotalVars, p.SensitiveVars, p.DefinedInSchema, p.UndefinedInSchema,
 	)
 }
+
+// SensitiveRatio returns the fraction of variables considered sensitive,
+// as a value between 0.0 and 1.0. Returns 0 if there are no variables.
+func SensitiveRatio(p Profile) float64 {
+	if p.TotalVars == 0 {
+		return 0
+	}
+	return float64(p.SensitiveVars) / float64(p.TotalVars)
+}
