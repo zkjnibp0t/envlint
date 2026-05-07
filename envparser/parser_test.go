@@ -82,3 +82,17 @@ func TestParse_ValueWithEquals(t *testing.T) {
 		t.Errorf("unexpected CONN value: %q", env["CONN"])
 	}
 }
+
+func TestParse_EmptyValue(t *testing.T) {
+	path := writeTempEnv(t, "EMPTY=\nALSO_EMPTY=\"\"\n")
+	env, err := envparser.Parse(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if env["EMPTY"] != "" {
+		t.Errorf("expected empty string for EMPTY, got %q", env["EMPTY"])
+	}
+	if env["ALSO_EMPTY"] != "" {
+		t.Errorf("expected empty string for ALSO_EMPTY, got %q", env["ALSO_EMPTY"])
+	}
+}
