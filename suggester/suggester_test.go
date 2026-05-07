@@ -80,3 +80,23 @@ func TestSuggest_NoErrors(t *testing.T) {
 		t.Errorf("expected no suggestions, got %d", len(result))
 	}
 }
+
+// TestSuggest_MultipleErrors verifies that suggestions are returned for each
+// validation error when multiple variables fail validation.
+func TestSuggest_MultipleErrors(t *testing.T) {
+	s := makeSchema(map[string]schema.VarDef{
+		"DATABASE_URL": {Required: true, Type: "url"},
+		"PORT":         {Required: true, Type: "int"},
+	})
+	errs := []validator.ValidationError{
+		{Variable: "DATABASE_URL", Kind: validator.ErrMissing},
+		{Variable: "PORT", Kind: validator.ErrInvalidType, Message: "not an int"},
+	}
+	envKeys := []string{"PORT"}
+
+	result := suggester.Suggest(errs, s, envKeys)
+
+	if len(result) != 2 {
+		t.Fatalf("expected 2 suggestions, got %d", len(result))
+	}
+}
