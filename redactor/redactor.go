@@ -3,6 +3,7 @@
 package redactor
 
 import (
+	"sort"
 	"strings"
 )
 
@@ -59,7 +60,7 @@ func isSensitive(key string, extra []Rule) bool {
 	return false
 }
 
-// Keys returns the list of keys that would be redacted for the given env.
+// Keys returns the sorted list of keys that would be redacted for the given env.
 func Keys(env map[string]string, opts Options) []string {
 	var out []string
 	for k := range env {
@@ -67,5 +68,6 @@ func Keys(env map[string]string, opts Options) []string {
 			out = append(out, k)
 		}
 	}
+	sort.Strings(out)
 	return out
 }
